@@ -73,11 +73,32 @@ const eventSchema = new Schema<IEvent>(
     },
     mode: {
       type: String,
-      enum: {
-        values: ["online", "offline", "hybrid"],
-        message: "Mode must be online, offline, or hybrid",
-      },
       required: [true, "Mode is required"],
+      validate: {
+        validator: function (v: string) {
+          const modeMap: { [key: string]: string } = {
+            "in-person": "offline",
+            "in person": "offline",
+            inperson: "offline",
+            offline: "offline",
+            "on-line": "online",
+            "on line": "online",
+            onlin: "online",
+            online: "online",
+            hybrid: "hybrid",
+            both: "hybrid",
+            "in-person & online": "hybrid",
+            "in-person and online": "hybrid",
+            "in-person (& online)": "hybrid",
+            "in-person (and online)": "hybrid",
+            "hybrid (in-person & online)": "hybrid",
+          };
+          const normalized = v.toLowerCase().trim();
+          return normalized in modeMap;
+        },
+        message:
+          "Mode must be one of: online, offline, hybrid, or similar variations",
+      },
     },
     audience: {
       type: String,
@@ -110,10 +131,11 @@ const eventSchema = new Schema<IEvent>(
 );
 
 /**
- * Pre-save hook to generate slug from title and normalize date/time formats
+ * Pre-save hook to generate slug from title and normalize date/time/mode formats
  * - Only regenerates slug if title has changed
  * - Normalizes date to ISO format (YYYY-MM-DD)
  * - Ensures time is in HH:MM format
+ * - Normalizes mode to standard enum values
  */
 eventSchema.pre<IEvent>("save", function () {
   // Generate slug only if title is modified or slug doesn't exist
@@ -143,6 +165,30 @@ eventSchema.pre<IEvent>("save", function () {
         this.time = timeObj.toISOString().substring(11, 16);
       }
     }
+  }
+
+  // Normalize mode to standard enum values
+  if (this.isModified("mode")) {
+    const modeMap: { [key: string]: string } = {
+      "in-person": "offline",
+      "in person": "offline",
+      inperson: "offline",
+      offline: "offline",
+      "on-line": "online",
+      "on line": "online",
+      onlin: "online",
+      online: "online",
+      hybrid: "hybrid",
+      both: "hybrid",
+      "in-person & online": "hybrid",
+      "in-person and online": "hybrid",
+      "in-person (& online)": "hybrid",
+      "in-person (and online)": "hybrid",
+      "hybrid (in-person & online)": "hybrid",
+    };
+
+    const normalizedMode = this.mode.toLowerCase().trim();
+    this.mode = modeMap[normalizedMode] || this.mode;
   }
 });
 

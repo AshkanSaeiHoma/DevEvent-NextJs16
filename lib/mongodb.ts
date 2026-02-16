@@ -55,10 +55,18 @@ async function connectDB(): Promise<Mongoose> {
   cached.promise = mongoose
     .connect(mongodbUri, {
       bufferCommands: false,
+      serverSelectionTimeoutMS: 10000, // 10 second timeout
+      socketTimeoutMS: 45000, // 45 second socket timeout
+      maxPoolSize: 10,
     })
     .then((mongooseInstance) => {
+      console.log("✅ MongoDB connected successfully!");
       cached.connection = mongooseInstance;
       return mongooseInstance;
+    })
+    .catch((error) => {
+      console.error("❌ MongoDB connection failed:", error.message);
+      throw error;
     });
 
   try {
