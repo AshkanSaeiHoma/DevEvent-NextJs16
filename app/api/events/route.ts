@@ -12,6 +12,7 @@ export async function POST(req: NextRequest) {
     });
 
     let event;
+    let formData: FormData | null = null;
     const contentType = req.headers.get("content-type") || "";
 
     // Handle JSON requests
@@ -23,7 +24,7 @@ export async function POST(req: NextRequest) {
       contentType.includes("multipart/form-data") ||
       contentType.includes("application/x-www-form-urlencoded")
     ) {
-      const formData = await req.formData();
+      formData = await req.formData();
       event = Object.fromEntries(formData.entries());
 
       const file = formData.get("image") as File;
@@ -60,7 +61,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const createdEvent = await Event.create(event);
+    let tags: unknown[] = [];
+    let agenda: unknown[] = [];
+    if (formData) {
+      const tagsValue = formData.get("tags");
+      const agendaValue = formData.get("agenda");
+      try {
+        tags = tagsValue ? JSON.parse(tagsValue as string) : [];
+      } catch {
+        tags = [];
+      }
+      try {
+        agenda = agendaValue ? JSON.parse(agendaValue as string) : [];
+      } catch {
+        agenda = [];
+      }
+    } else {
+      tags = (event && (event as { tags?: unknown[] }).tags) || [];
+      agenda = (event && (event as { agenda?: unknown[] }).agenda) || [];
+    }
+
+    const createdEvent = await Event.create({
+      ...event,
+      tags: tags,
+      agenda: agenda,
+    });
     return NextResponse.json(
       {
         message: "Event created successfully",
